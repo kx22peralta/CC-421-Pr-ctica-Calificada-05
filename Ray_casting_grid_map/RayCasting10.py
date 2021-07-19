@@ -52,6 +52,84 @@ class Rectangle:
             else:
                 return False
 
+# construir obstrucción
+def square_obstacle(obs_x, obs_y, obs_width, obs_height, _obstacleImg):
+    current = Rectangle(obs_x, obs_y, obs_width, obs_height)
+
+    if(len(obstacleList) == 0):
+        obstacleList.append(current)
+    # comprobar si hay cajas duplicadas
+    duplicate_found = False
+    for box in obstacleList:
+        if current.__eq__(box):
+            duplicate_found = True
+        else:
+            duplicate_found = False
+
+    if duplicate_found == False:
+        obstacleList.append(current)
+        print(str(len(obstacleList)) + str(" ")+str(obs_x) +str(" ")+ str(obs_y)+str(" ")+ str(obs_width)+str(" ")+ str(obs_height))
+# lee de C:\Users\frank\Documents\GitHub\CC-421-Practica-Calificada-05\Ray_casting_grid_map\Arena1.txt para completar el mapa de obstáculos y crear un mapa
+# la primera línea leída contiene coordenadas que representan el tamaño de ventana deseado
+# cada línea a partir de entonces contiene un obstáculo cuadrado "x posición inicial, y posición inicial, ancho, alto"
+# NO incluya paréntesis para el tamaño de la ventana u obstáculos 
+def scan_obstacle_file(file_path):
+    file = open(file_path, "r")
+    if file.mode == 'r':
+        file_line = file.readlines()
+        read_window_size(file_line[0])
+
+        for line in file_line[1:]:
+            # ahora solo separe x, y, ancho, alto 
+            # y agregue cada línea como un parámetro de obstáculo cuadrado 
+            value = line.split(',')
+            square_obstacle(int(value[0]), int(value[1]), int(value[2]), int(value[3]), obstacleImg)
+
+# divide la cadena por, dividiendo screenWidth y screenHeight y luego establece los valores
+def read_window_size(first_line):
+    list = first_line.split(',')
+    global displayWidth
+    global displayHeight
+    displayWidth = int(list[0])
+    displayHeight = int(list[1])
+    screen = pygame.display.set_mode((displayWidth,displayHeight))
+
+def find_rotation_degrees(mouse_X, mouse_Y, center_X, center_Y, radians):
+    degree = (radians * (180 / 3.1415) * -1) + 90
+    return degree
+
+# método para determinar cuántos radianes rotar la imagen del jugador
+def find_rotation_radians(mouse_X, mouse_Y, center_X, center_Y):
+    radians = math.atan2(mouse_Y - center_Y, mouse_X - center_X)
+    return radians
+
+
+# método para determinar todos los puntos que forman un círculo en un espacio 2d.
+# parámetros son (coord x, coord y, radio, radianes rotados). devuelve una matriz de puntos 
+def find_cicle(x, y, radius, radiansRotated):
+    radiansRotated = -radiansRotated + math.pi/2
+    rangeArr = [radiansRotated + math.pi/4, radiansRotated + math.pi/6,
+    radiansRotated + math.pi/16, radiansRotated - math.pi/16,
+     radiansRotated + math.pi/8, radiansRotated - math.pi/8,radiansRotated - math.pi/6, radiansRotated - (math.pi/4)]
+    returnArr = []
+    for index in rangeArr:
+        return_X = y + (radius * math.cos(index))
+        return_Y = x + (radius * math.sin(index))
+        return_X = int(round(return_X))
+        return_Y = int(round(return_Y))
+        returnArr.append([return_X, return_Y])
+    return returnArr
+
+
+# dado un punto (centro de playerImg) y (int) d grado en radianes, creará un círculo a su alrededor y devolverá un punto a lo largo del
+#circunferencia del círculo (45 grados + d)
+def draw_cone_line_of_sight(center_X, center_Y, circlePointList):
+    for circleCoordPair in circlePointList:
+        x = circleCoordPair[1]
+        y = circleCoordPair[0]
+        draw_line_of_sight(x, y, center_X, center_Y)
+
+
 #Carga el juego y evita que se cierre(loop), aqui se comprueban y gestionan los eventos y acciones
 def game_loop():
     x = (displayWidth * .45)
