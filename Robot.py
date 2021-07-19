@@ -14,7 +14,11 @@ import numpy as np
 from numpy.distutils.command.config import config
 import pygame
 from sys import exit
-""" pygame.sprite.Sprite """
+BLACK  = (   0,   0,   0)
+WHITE  = ( 255, 255, 255)
+GREEN  = (   0, 255,   0)
+RED    = ( 255,   0,   0)
+BLUE   = (   0,   0, 255)
 
 class RobotType(Enum):
     circle = 0
@@ -210,42 +214,6 @@ class Robot(pygame.sprite.Sprite):
     def add_ob(self,o):
         self.config.ob.append(o)
     
-    def calcular_coordenadas(self,x):
-        rot =np.array([ [np.cos(x[2]), -np.sin(x[2])], 
-                                         [np.sin(x[2]), np.cos(x[2]) ] ])
-        coord = np.array( [ [x[0] -(self.config.robot_length/2),
-                                                                x[0] -(self.config.robot_length/2),
-                                                                x[0] + (self.config.robot_length/2) ,
-                                                                x[0] + (self.config.robot_length/2)] ,
-                                                                
-                                                                [x[1]+(self.config.robot_width/2),
-                                                                x[1]-(self.config.robot_width/2),
-                                                                x[1]-(self.config.robot_width/2),
-                                                                x[1]+(self.config.robot_width/2) ] ]) @ rot
-        return coord.transpose()
-    
-    def dibujo_robot(self, x):
-        if self.config.robot_type == RobotType.circle:
-            self.shape = pygame.draw.circle((x[0],x[1]), self.config.robot_radius)
-        elif self.config.robot_type == RobotType.rectangle:
-            coord = self.calcular_coordenadas(x)
-            self.shape = pygame.draw.polygon(coord)
-
-    def dibuja_trayectorias(x,trayectorias_candidatas):
-        print("trayectorias candidatas")
-
-    def dibuja_trayectoria(x,predicted_trajectory):
-        print("trayectoria")
-
-    def dibuja_obstaculos(ob):
-        print("dibuja obstaculos")
-
-    def dibuja_meta(goal):
-        print("dibuja la meta")
-    
-    def movimiento(self,x):
-        print("movimiento")
-
     def run(self, x , goal):
          """  Bucle de avance , mientras el objetivo no alcance la meta. """
          self.inicio = x
@@ -253,14 +221,64 @@ class Robot(pygame.sprite.Sprite):
          trajectory = np.array(x)
          while True:
             u, predicted_trajectory, trayectorias_candidatas = self.dwa_control(x)
-            x = self.motion(x, u)  # simulate robot
+            x = self.motion(x, u)  # simulación del movimiento del robot
             print(x)
-            trajectory = np.vstack((trajectory, x))  # store state history
+            trajectory = np.vstack((trajectory, x))  # historial de los estados.
             dist_to_goal = math.hypot(x[0] - goal[0], x[1] - goal[1])
             if dist_to_goal <= self.config.robot_radius:
                 print("Goal!!")
                 break
 
+""" Dibujos """    
+def calcular_coordenadas(x,length, width):
+        rot =np.array([ [np.cos(x[2]), -np.sin(x[2])], 
+                                         [np.sin(x[2]), np.cos(x[2]) ] ])
+        coord =np.array( [ [x[0] -(length/2),
+                                                                x[0] -(length/2),
+                                                                x[0] + (length/2) ,
+                                                                x[0] + (length/2)] ,
+                                                                
+                                                                [x[1]+(width/2),
+                                                                x[1]-(width/2),
+                                                                x[1]-(width/2),
+                                                                x[1]+(width/2) ] ]).T  
+                            
+        print(coord.shape)
+        print(rot.shape)
+        coord = coord @ rot
+        print(coord)
+        return coord.transpose()
+    
+def dibujo_robot(x, Robot, screen):
+    if Robot.config.robot_type == RobotType.circle:
+        shape = pygame.draw.circle(screen, WHITE ,(x[0],x[1]), Robot.config.robot_radius)
+    elif Robot.config.robot_type == RobotType.rectangle:
+        coord = calcular_coordenadas(x, Robot.config.robot_length , Robot.config.robot_width)
+        shape = pygame.draw.polygon(screen,WHITE,coord)
+    
+
+def dibuja_trayectorias(x,trayectorias_candidatas, screen):
+    print("trayectorias candidatas")
+    for trayectoria in trayectorias_candidatas:
+        pygame.draw.line(screen,GREEN, (x[0],x[1]), (trayectoria[-1,0],trayectoria[-1,1]), width=2)
+
+def dibuja_trayectoria(x,predicted_trajectory,screen):
+    print("trayectoria")
+    pygame.draw.line(screen,RED ,(x[0],x[1]), (predicted_trajectory[-1,0],predicted_trajectory[-1,1]), width=1)
+
+def dibuja_obstaculos(ob, screen):
+    print("dibuja obstaculos")
+    for o in ob:
+        pygame.draw.circle(screen,BLUE, (ob[0],ob[1]), 4)
+
+def dibuja_meta(goal,screen):
+    pygame.draw.circle(screen,GREEN ,(goal[0],goal[1]), 4)
+    
+def movimiento(self,x):
+    print("movimiento")
+
+
+""" Simulación sin dependencia del robot """
 def simulacion(Robot,x,goal):
     trajectory = np.array(x)
     while True:
@@ -275,13 +293,7 @@ def simulacion(Robot,x,goal):
             break
 
 
-def main():
-    Robot1 =  Robot(RobotType.rectangle)
-    x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
-    goal = np.array([10.0, 10.0])
-    #Robot1.run(x,goal)
-    simulacion(Robot1,x,goal)
-
+""" Función grafica """
 def SIMULACION(Robot, x , goal ):
            #Bucle de avance , mientras el objetivo no alcance la meta.
         Robot.goal = goal 
@@ -289,24 +301,33 @@ def SIMULACION(Robot, x , goal ):
         pygame.init()
         screen = pygame.display.set_mode((400,600))
         pygame.display.set_caption("Dynamic window approach")
-        width_robot = 0.2
-        length_robot = 1.2
+        width_robot = 20
+        length_robot = 120
         test_surface = pygame.Surface((length_robot, width_robot))
-        test_surface.fill('Red')
+        test_surface.fill('Skyblue')
         clock = pygame.time.Clock()
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                # insertar la superficie en el display surface en la posición 0,0
-                screen.blit(test_surface, (0,0))
-                # actualiza todo el screen
-                pygame.display.update()
-                clock.tick(60)
-        
+            pygame.draw.rect(screen, RED, np.array([50, 200, 30, 30]))
+            # insertar la superficie en el display surface en la posición 0,0
+            dibujo_robot(x,Robot,screen)
+            screen.blit(test_surface, (0,0))
+            # actualiza todo el screen
+            pygame.display.update()
+            clock.tick(60)
 
 
+""" Función principal """
+def main():
+    Robot1 =  Robot(RobotType.rectangle)
+    x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
+    goal = np.array([10.0, 10.0])
+    #Robot1.run(x,goal)
+    #simulacion(Robot1,x,goal)
+    SIMULACION(Robot1,x,goal)
 
 if __name__ == '__main__':
     main()
