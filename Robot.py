@@ -11,8 +11,9 @@ from enum import Enum
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.distutils.command.config import config
+
 import pygame
+from pygame.transform import flip, scale, rotate, rotozoom
 from sys import exit
 BLACK  = (   0,   0,   0)
 WHITE  = ( 255, 255, 255)
@@ -29,33 +30,34 @@ class Config:
     clase de parámetro de simulación
     """
 
-    def __init__(self):
+    def __init__(self,pixel):
         # parametros del robot
 
-        self.max_speed = 1.0  # [m/s]
-        self.min_speed = -0.5  # [m/s]
-        self.max_yaw_rate = 40.0 * math.pi / 180.0  # [rad/s]
+        self.max_speed = 1.0 * pixel # [m/s]
+        self.min_speed = -0.5  * pixel# [m/s]
+        self.max_yaw_rate =  ( 40.0 * math.pi / 180.0)* pixel  # [rad/s]
         self.max_accel = 0.2  # [m/ss]
-        self.max_delta_yaw_rate = 40.0 * math.pi / 180.0  # [rad/ss]
+        self.max_delta_yaw_rate = (40.0 * math.pi / 180.0 )* pixel # [rad/ss]
         self.v_resolution = 0.01  # [m/s]
-        self.yaw_rate_resolution = 0.1 * math.pi / 180.0  # [rad/s]
+        self.yaw_rate_resolution = (0.1 * math.pi / 180.0) * pixel # [rad/s]
         self.dt = 0.1  # [s] marca de tiempo para la predicción en movimiento
-        self.predict_time = 3.0  # [s]
-        self.to_goal_cost_gain = 0.15
-        self.speed_cost_gain = 1.0
-        self.obstacle_cost_gain = 1.0
-        self.robot_stuck_flag_cons = 0.001  # constante para probar que el robot se atasque.
-        self.robot_type = RobotType.circle
+        self.predict_time = 3.0   # [s]
+        self.to_goal_cost_gain = 0.15 
+        self.speed_cost_gain = 1.0 
+        self.obstacle_cost_gain = 1.0 
+        self.robot_stuck_flag_cons = 0.001 * pixel # constante para probar que el robot se atasque.
+        self.robot_type = RobotType.circle 
 
         # if robot_type == RobotType.circle
         #También se utiliza para comprobar si se alcanza el objetivo en ambos tipos
-        self.robot_radius = 4.0  # [m] para control de colisión
+        self.robot_radius = 0.5  * pixel # [m] para control de colisión
 
         # if robot_type == RobotType.rectangle
-        self.robot_width = 4.0 # [m] para control de colisión
-        self.robot_length = 10.0  # [m]para control de colisión
+        self.robot_width = 0.5  * pixel# [m] para control de colisión
+        self.robot_length = 1.2 * pixel  # [m]para control de colisión
         # obstaculos [x(m) y(m), ....]
         self.ob = np.array([[50, 50]])
+ 
 
     @property
     def robot_type(self):
@@ -89,10 +91,11 @@ class Robot(pygame.sprite.Sprite):
     """ posición de la meta  [x(m), y(m)] 
            x(m) : posición en x de la meta
            y(m) : posición de y de la meta"""
-    def __init__(self,robot_type ):
+    def __init__(self,robot_type, pixel = 10 ):
         super().__init__()
-        self.config = Config()
+        self.config = Config(pixel)
         self.config.robot_type = robot_type
+        self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False,True)
 
     def motion(self, x, u):
         x[2] += u[1] * self.config.dt
@@ -133,7 +136,6 @@ class Robot(pygame.sprite.Sprite):
     
     def calc_control_and_trajectory(self, x, dw):
         x_init = x[:]
-        min_cost = float("inf")
         best_u = [0.0, 0.0]
         best_trajectory = np.array([x])
         trayectorias_candidatas = []
@@ -253,11 +255,11 @@ def dibuja_trayectoria(x,predicted_trajectory,screen):
 
 def dibuja_obstaculos(ob, screen):
     print("dibuja obstaculos")
-    for o in ob:
-        pygame.draw.circle(screen,BLUE, (ob[0],ob[1]), 4)
+    for i in range(ob.shape[0]):
+        pygame.draw.circle(screen,BLUE, (ob[i][0],ob[i][1]), 1)
 
 def dibuja_meta(goal,screen):
-    pygame.draw.circle(screen,GREEN ,(goal[0],goal[1]), 4)
+    pygame.draw.circle(screen,GREEN ,(goal[0],goal[1]), 1)
     
 def movimiento(self,x):
     print("movimiento")
@@ -280,42 +282,33 @@ def simulacion(Robot,x,goal):
 
 """ Función grafica """
 def SIMULACION(Robot, x , goal ):
-           #Bucle de avance , mientras el objetivo no alcance la meta.
-        Robot.goal = goal 
-        trajectory = np.array(x)
-        pygame.init()
-        screen = pygame.display.set_mode((400,600))
-        pygame.display.set_caption("Dynamic window approach")
-        width_robot = 20
-        length_robot = 120
-        test_surface = pygame.Surface((length_robot, width_robot))
-        test_surface.fill('Skyblue')
-        clock = pygame.time.Clock()
-        movement = True
-
-        while True:
-            Robot.goal = goal
-            if movement:
-                u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
-                x = Robot.motion(x, u)  # nuevo estado del robot
-                trajectory = np.vstack((trajectory, x))  # store state history
-                dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
-                if dist_to_goal <= Robot.config.robot_radius:
-                    print("Goal!!")
-                    movement = False
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    exit()
-            #pygame.draw.rect(screen, RED, np.array([50, 200, 30, 30]))
-            # insertar la superficie en el display surface en la posición 0,0
-            dibujo_robot(x,Robot,screen)
-           
-            #screen.blit(test_surface, (0,0))
-            # actualiza todo el screen
-            pygame.display.flip()
-            pygame.display.update()
-            clock.tick(60)
+    Robot.goal = goal 
+    trajectory = np.array(x)
+    pygame.init()
+    clock = pygame.time.Clock()
+    screen = pygame.display.set_mode((400,600))
+    pygame.display.set_caption("Dynamic window approach")
+    
+    movement = True
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+        if movement:
+            u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
+            x = Robot.motion(x, u)  # nuevo estado del robot
+            trajectory = np.vstack((trajectory, x))  # store state history
+            dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
+            if dist_to_goal <= Robot.config.robot_radius:
+                print("Goal!!")
+                movement = False
+        screen.fill('Skyblue')
+        screen.blit(rotate(Robot.auto, x[3]),  ( x[0], x[1])  )
+        dibuja_meta(goal,screen)
+        dibuja_obstaculos(Robot.config.ob, screen)
+        pygame.display.update()
+        clock.tick(60)  
 
 
 """ Función principal """
