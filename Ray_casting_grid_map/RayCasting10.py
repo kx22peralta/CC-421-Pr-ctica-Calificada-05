@@ -110,7 +110,7 @@ def find_cicle(x, y, radius, radiansRotated):
     radiansRotated = -radiansRotated + math.pi/2
     rangeArr = [radiansRotated + math.pi/4, radiansRotated + math.pi/6,
     radiansRotated + math.pi/16, radiansRotated - math.pi/16,
-     radiansRotated + math.pi/8, radiansRotated - math.pi/8,radiansRotated - math.pi/6, radiansRotated - (math.pi/4)]
+    radiansRotated + math.pi/8, radiansRotated - math.pi/8,radiansRotated - math.pi/6, radiansRotated - (math.pi/4)]
     returnArr = []
     for index in rangeArr:
         return_X = y + (radius * math.cos(index))
@@ -119,6 +119,90 @@ def find_cicle(x, y, radius, radiansRotated):
         return_Y = int(round(return_Y))
         returnArr.append([return_X, return_Y])
     return returnArr
+
+
+# Dibujar las lineas raycast, puede hacer un simil con la vision del player
+def draw_line_of_sight(mouse_X, mouse_Y, center_X, center_Y):
+    global prevMouseX
+    global prevMouseY
+    global prevCenterX
+    global prevCenterY
+    global prevLOSX
+    global prevLOSY
+
+    if(mouse_X == prevMouseX and mouse_Y == prevMouseY and center_X == prevCenterX and center_Y == prevCenterY):
+        pygame.draw.line(screen, black, (prevCenterX, prevCenterY), (prevLOSX, prevLOSY), 3)
+        return
+
+    lineThickness = 1
+
+    prevMouseX = mouse_X
+    prevMouseY = mouse_Y
+    prevCenterX = center_X
+    prevCenterY = center_Y
+    noCollisionFound = True
+    threshold = 11
+    index = 0
+
+    if mouse_X <= 0:
+        mouse_X = 1
+    if  mouse_Y <= 0:
+        mouse_Y = 1
+
+    #Pendiente del caycast(vision del player)
+    slope = (center_Y - mouse_Y) / (center_X - mouse_X)
+
+    if mouse_X > center_X:
+        while noCollisionFound:
+            yCoord = (slope * index) + center_Y
+            if check_obstacle_collision(index + center_X, yCoord):
+                pygame.draw.line(screen, black, (center_X, center_Y), (index + center_X, yCoord), lineThickness)
+                prevLOSX = index + center_X
+                prevLOSY = yCoord
+                noCollisionFound = False
+            elif check_screen_collision(index + center_X, yCoord):
+                pygame.draw.line(screen, black, (center_X, center_Y), (index + center_X, yCoord), lineThickness)
+                prevLOSX = index + center_X
+                prevLOSY = yCoord
+                noCollisionFound = False
+            else :
+                index = index + 1
+
+    else:
+        while noCollisionFound:
+            yCoord = (-slope * index) + center_Y
+            if check_obstacle_collision(center_X - index, yCoord):
+                pygame.draw.line(screen, black, (center_X, center_Y), (center_X - index, yCoord), lineThickness)
+                prevLOSX = center_X - index
+                prevLOSY = yCoord
+                noCollisionFound = False
+            elif check_screen_collision(center_X - index, yCoord):
+                pygame.draw.line(screen, black, (center_X, center_Y), (center_X -index, yCoord), lineThickness)
+                prevLOSX = center_X - index
+                prevLOSY = yCoord
+                noCollisionFound = False
+            else :
+                index = index + 1
+
+
+#Las 2 funciones siguientes limitan las lineas y evita que traspacen un bloque o dimensión de la pantalla
+#Dado un punto, devuelve True si cumple con las dimensiones del obstáculo
+def check_obstacle_collision(los_X, los_Y):
+    for box in obstacleList:
+        if(los_X >= box.x and los_X <= box.x + box.width):
+            if(los_Y >= box.y and los_Y <= box.y + box.height):
+                return True
+    else:
+        return False
+
+#Dado un punto, devuelve verdadero si ha salido de los limites de la pantalla
+def check_screen_collision(los_X, los_Y):
+    if(los_X <= 0 or los_X >= displayWidth):
+        return True
+    if(los_Y <= 0 or los_Y >= displayHeight):
+        return True
+    else :
+        return False
 
 
 # dado un punto (centro de playerImg) y (int) d grado en radianes, creará un círculo a su alrededor y devolverá un punto a lo largo del
@@ -137,6 +221,9 @@ def game_loop():
 
     x_change = 0
     y_change = 0
+
+    # Crea el mapa a traves del documento
+    scan_obstacle_file("Arena1.txt")
 
     #Variable que hace referncia a que el juego está en marcha
     running = True
@@ -194,6 +281,16 @@ def game_loop():
 
         centerX = x + (playerImg.get_width()/2)
         centerY = y + (playerImg.get_height()/2)
+
+
+        radians = find_rotation_radians(mouseX, mouseY, centerX, centerY)
+        degrees = find_rotation_degrees(mouseX, mouseY, centerX, centerY, radians)
+        draw_line_of_sight(mouseX, mouseY, centerX, centerY)
+        circleArr = find_cicle(centerX, centerY, 100, radians)
+        draw_cone_line_of_sight(centerX, centerY, circleArr)
+        playerImgRotated = pygame.transform.rotate(playerImg, degrees)
+        screen.blit(playerImgRotated,(x,y))
+
 
         clock.tick(50)
         pygame.display.update()
