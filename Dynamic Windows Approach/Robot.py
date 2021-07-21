@@ -30,11 +30,11 @@ class Config:
     clase de parámetro de simulación
     """
 
-    def __init__(self,pixel):
+    def __init__(self, pixel):
         # parametros del robot
 
         self.max_speed = 1.0 * pixel # [m/s]
-        self.min_speed = -0.5  * pixel# [m/s]
+        self.min_speed = -0.5  * pixel # [m/s]
         self.max_yaw_rate =  ( 40.0 * math.pi / 180.0)* pixel  # [rad/s]
         self.max_accel = 0.2  # [m/ss]
         self.max_delta_yaw_rate = (40.0 * math.pi / 180.0 )* pixel # [rad/ss]
@@ -50,13 +50,18 @@ class Config:
 
         # if robot_type == RobotType.circle
         #También se utiliza para comprobar si se alcanza el objetivo en ambos tipos
-        self.robot_radius = 0.5  * pixel # [m] para control de colisión
-
+        self.robot_radius = 0.5  * 30 # [m] para control de colisión
+        self.obs_radius = 0.5 * 30
         # if robot_type == RobotType.rectangle
-        self.robot_width = 0.5  * pixel# [m] para control de colisión
-        self.robot_length = 1.2 * pixel  # [m]para control de colisión
+        self.robot_width = 0.5  * 30# [m] para control de colisión
+        self.robot_length = 1.2 * 30  # [m]para control de colisión
         # obstaculos [x(m) y(m), ....]
-        self.ob = np.array([[50, 50]])
+        self.ob = np.array([[100.0, 100.0],
+                            [200.0, 100.0],
+                            [300.0, 100.0],
+                            [200.0, 200.0],
+                            [300.0, 200.0],
+                            [400.0, 200.0]])
  
 
     @property
@@ -95,7 +100,7 @@ class Robot(pygame.sprite.Sprite):
         super().__init__()
         self.config = Config(pixel)
         self.config.robot_type = robot_type
-        self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False,True)
+        self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False, True)
 
     def motion(self, x, u):
         x[2] += u[1] * self.config.dt
@@ -136,6 +141,7 @@ class Robot(pygame.sprite.Sprite):
     
     def calc_control_and_trajectory(self, x, dw):
         x_init = x[:]
+        min_cost = float("inf")
         best_u = [0.0, 0.0]
         best_trajectory = np.array([x])
         trayectorias_candidatas = []
@@ -176,10 +182,10 @@ class Robot(pygame.sprite.Sprite):
             local_ob = np.array([local_ob @ x for x in rot])
             local_ob = local_ob.reshape(-1, local_ob.shape[-1])
             """ Checking si alguno llega a chocar al robot """
-            upper_check = local_ob[:, 0] <= self.config.robot_length / 2
-            right_check = local_ob[:, 1] <= self.config.robot_width / 2
-            bottom_check = local_ob[:, 0] >= -self.config.robot_length / 2
-            left_check = local_ob[:, 1] >= -self.config.robot_width / 2
+            upper_check = local_ob[:, 0] + self.config.obs_radius <= self.config.robot_length / 2
+            right_check = local_ob[:, 1] + self.config.obs_radius <= self.config.robot_width / 2
+            bottom_check = local_ob[:, 0] + self.config.obs_radius >= -self.config.robot_length / 2
+            left_check = local_ob[:, 1] + self.config.obs_radius >= -self.config.robot_width / 2
             if (np.logical_and(np.logical_and(upper_check, right_check),
                             np.logical_and(bottom_check, left_check))).any():
                 return float("Inf")
@@ -254,12 +260,14 @@ def dibuja_trayectoria(x,predicted_trajectory,screen):
     pygame.draw.line(screen,RED ,(x[0],x[1]), (predicted_trajectory[-1,0],predicted_trajectory[-1,1]), width=1)
 
 def dibuja_obstaculos(ob, screen):
-    print("dibuja obstaculos")
     for i in range(ob.shape[0]):
-        pygame.draw.circle(screen,BLUE, (ob[i][0],ob[i][1]), 1)
+        obstaculo=scale(pygame.image.load("arbusto.png"), (50, 50))
+        screen.blit(obstaculo, (ob[i][0], ob[i][1]))     
+
 
 def dibuja_meta(goal,screen):
-    pygame.draw.circle(screen,GREEN ,(goal[0],goal[1]), 1)
+    meta=scale(pygame.image.load("inicio-fin.png"), (50, 50))
+    screen.blit(meta, (goal[0],goal[1]))
     
 def movimiento(self,x):
     print("movimiento")
@@ -281,12 +289,12 @@ def simulacion(Robot,x,goal):
 
 
 """ Función grafica """
-def SIMULACION(Robot, x , goal ):
+def SIMULACION(Robot, x , goal):
     Robot.goal = goal 
     trajectory = np.array(x)
     pygame.init()
     clock = pygame.time.Clock()
-    screen = pygame.display.set_mode((400,600))
+    screen = pygame.display.set_mode((700, 700))
     pygame.display.set_caption("Dynamic window approach")
     
     movement = True
@@ -298,15 +306,18 @@ def SIMULACION(Robot, x , goal ):
         if movement:
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
             x = Robot.motion(x, u)  # nuevo estado del robot
-            trajectory = np.vstack((trajectory, x))  # store state history
+            print(x)
+            trajectory = np.vstack((trajectory, x))  # guardando estado
             dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
             if dist_to_goal <= Robot.config.robot_radius:
                 print("Goal!!")
                 movement = False
-        screen.fill('Skyblue')
-        screen.blit(rotate(Robot.auto, x[3]),  ( x[0], x[1])  )
-        dibuja_meta(goal,screen)
-        dibuja_obstaculos(Robot.config.ob, screen)
+        ##############--------ZONA DE DIBUJO------##############
+        screen.fill('Skyblue') # pintando la ventana
+        screen.blit(rotate(Robot.auto, x[3]), (int(x[0]), int(x[1]))) # dibunjando el robot
+        dibuja_meta(goal, screen) # dibujando meta
+        dibuja_obstaculos(Robot.config.ob, screen) # dibujando obstaculos
+        #######################################################
         pygame.display.update()
         clock.tick(60)  
 
@@ -315,7 +326,7 @@ def SIMULACION(Robot, x , goal ):
 def main():
     Robot1 =  Robot(RobotType.circle)
     x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
-    goal = np.array([100.0, 100.0])
+    goal = np.array([500.0, 300.0])
     #Robot1.run(x,goal)
     #simulacion(Robot1,x,goal)
     SIMULACION(Robot1,x,goal)
