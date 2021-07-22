@@ -35,16 +35,16 @@ class Config:
 
         self.max_speed = 1.0 * pixel # [m/s]
         self.min_speed = -0.5  * pixel # [m/s]
-        self.max_yaw_rate =  ( 40.0 * math.pi / 180.0)* pixel  # [rad/s]
+        self.max_yaw_rate =  ( 40.0 * math.pi / 180.0)  # [rad/s]
         self.max_accel = 0.2  * pixel # [m/ss]
-        self.max_delta_yaw_rate = (40.0 * math.pi / 180.0 )* pixel # [rad/ss]
-        self.v_resolution = 0.01  # [m/s]
-        self.yaw_rate_resolution = (0.1 * math.pi / 180.0) * pixel # [rad/s]
+        self.max_delta_yaw_rate = (40.0 * math.pi / 180.0 ) # [rad/ss]
+        self.v_resolution = 0.01 * pixel # [m/s]
+        self.yaw_rate_resolution = (0.1 * math.pi / 180.0)  # [rad/s]
         self.dt = 0.1  # [s] marca de tiempo para la predicción en movimiento
         self.predict_time = 3.0   # [s]
         self.to_goal_cost_gain = 0.15 * pixel 
-        self.speed_cost_gain = 1.0  * pixel
-        self.obstacle_cost_gain = 1.0  * pixel
+        self.speed_cost_gain = 1.0  
+        self.obstacle_cost_gain = 1.0  
         self.robot_stuck_flag_cons = 0.001 * pixel # constante para probar que el robot se atasque.
         self.robot_type = RobotType.circle 
 
@@ -102,6 +102,7 @@ class Robot(pygame.sprite.Sprite):
         self.config = Config(pixel)
         self.config.robot_type = robot_type
         self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False, True)
+      
 
     def motion(self, x, u):
         x[2] += u[1] * self.config.dt
@@ -252,26 +253,22 @@ def dibujo_robot(x, Robot, screen):
     return shape
 
 def dibuja_trayectorias(x,trayectorias_candidatas, screen):
-    print("trayectorias candidatas")
     for trayectoria in trayectorias_candidatas:
-        pygame.draw.line(screen,GREEN, (x[0],x[1]), (trayectoria[-1,0],trayectoria[-1,1]), width=2)
+        pygame.draw.line(screen,BLACK, (x[0],x[1]), (trayectoria[-1,0],trayectoria[-1,1]), width=1)
 
 def dibuja_trayectoria(x,predicted_trajectory,screen):
-    print("trayectoria")
-    pygame.draw.line(screen,RED ,(x[0],x[1]), (predicted_trajectory[-1,0],predicted_trajectory[-1,1]), width=1)
+    pygame.draw.line(screen,RED ,(x[0],x[1]), (predicted_trajectory[-1,0],predicted_trajectory[-1,1]),2)
 
-def dibuja_obstaculos(ob, screen):
+def dibuja_obstaculos(ob, screen,tam):
     for i in range(ob.shape[0]):
-        obstaculo=scale(pygame.image.load("arbusto.png"), (5, 5))
-        screen.blit(obstaculo, (ob[i][0], ob[i][1]))     
+        obstaculo=scale(pygame.image.load("arbusto.png").convert_alpha(), (int(tam), int(tam)))
+        screen.blit(obstaculo, obstaculo.get_rect( center=(ob[i][0], ob[i][1])))     
 
 
-def dibuja_meta(goal,screen):
-    meta=scale(pygame.image.load("inicio-fin.png"), (50, 50))
-    screen.blit(meta, (goal[0],goal[1]))
-    
-def movimiento(self,x):
-    print("movimiento")
+def dibuja_meta(goal,screen,tam):
+    meta=scale(pygame.image.load("inicio-fin.png").convert_alpha(), (int(tam), int(tam)))
+    screen.blit(meta, meta.get_rect(center=(goal[0],goal[1])))
+
 
 
 """ Simulación sin dependencia del robot """
@@ -304,12 +301,7 @@ def SIMULACION(Robot, x , goal):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-        ##############--------ZONA DE DIBUJO------##############
-        screen.fill('Skyblue') # pintando la ventana
-        screen.blit(rotate(Robot.auto, x[3]), (int(x[0]), int(x[1]))) # dibunjando el robot
-        dibuja_meta(goal, screen) # dibujando meta
-        dibuja_obstaculos(Robot.config.ob, screen) # dibujando obstaculos
-        #######################################################
+       
         if movement:
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
             x = Robot.motion(x, u)  # nuevo estado del robot
@@ -319,6 +311,14 @@ def SIMULACION(Robot, x , goal):
             if dist_to_goal <= Robot.config.robot_radius:
                 print("Goal!!")
                 movement = False
+             ##############--------ZONA DE DIBUJO------##############
+        screen.fill('White') # pintando la ventana
+        screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
+        dibuja_meta(goal, screen, Robot.config.obs_radius) # dibujando meta
+        dibuja_obstaculos(Robot.config.ob, screen, Robot.config.obs_radius) # dibujando obstaculos
+        dibuja_trayectorias(x,trayectorias_candidatas, screen)
+        dibuja_trayectoria(x,predicted_trajectory,screen)
+        #######################################################
         
         pygame.display.update()
         clock.tick(60)  
@@ -326,7 +326,7 @@ def SIMULACION(Robot, x , goal):
 
 """ Función principal """
 def main():
-    Robot1 =  Robot(RobotType.circle,10)
+    Robot1 =  Robot(RobotType.circle,20)
     x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
     goal = np.array([500.0, 300.0])
     #Robot1.run(x,goal)
