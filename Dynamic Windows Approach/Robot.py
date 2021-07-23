@@ -21,6 +21,14 @@ GREEN  = (   0, 255,   0)
 RED    = ( 255,   0,   0)
 BLUE   = (   0,   0, 255)
 
+""" Ray-casting  """
+obstacleList =np.array( [[100.0, 100.0],
+                            [200.0, 100.0],
+                            [300.0, 100.0],
+                            [200.0, 200.0],
+                            [300.0, 200.0],
+                            [400.0, 200.0]])
+
 class RobotType(Enum):
     circle = 0
     rectangle = 1
@@ -56,14 +64,13 @@ class Config:
         self.robot_width = 0.5  * pixel# [m] para control de colisión
         self.robot_length = 1.2 * pixel # [m]para control de colisión
         # obstaculos [x(m) y(m), ....]
-        self.ob = np.array([[100.0, 100.0],
+        """ self.ob = np.array([[100.0, 100.0],
                             [200.0, 100.0],
                             [300.0, 100.0],
                             [200.0, 200.0],
                             [300.0, 200.0],
-                            [400.0, 200.0]])
-        
- 
+                            [400.0, 200.0]]) """
+        self.ob = "vacio"
 
     @property
     def robot_type(self):
@@ -74,16 +81,6 @@ class Config:
         if not isinstance(value, RobotType):
             raise TypeError("robot_type must be an instance of RobotType")
         self._robot_type = value
-
-""" Obstaculos son circulos """
-class Obstaculo(pygame.sprite.Sprite):
-    def __init__(self, tupla, radio):
-        super().__init__()
-        self.center = tupla
-        self.radio = radio
-       
-    def coordenadas(self):
-        return [self.center[0], self.center[1]] 
 
 """ Robots """
 class Robot(pygame.sprite.Sprite):
@@ -103,7 +100,6 @@ class Robot(pygame.sprite.Sprite):
         self.config.robot_type = robot_type
         self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False, True)
       
-
     def motion(self, x, u):
         x[2] += u[1] * self.config.dt
         x[0] += u[0] * math.cos(x[2]) * self.config.dt
@@ -170,6 +166,7 @@ class Robot(pygame.sprite.Sprite):
         return best_u, best_trajectory, trayectorias_candidatas
     
     def calc_obstacle_cost(self, trajectory):
+        if( self.config.ob =="vacio" ): return 0
         ox = self.config.ob[:, 0]
         oy = self.config.ob[:, 1]
         dx = trajectory[:, 0] - ox[:, None]
@@ -207,7 +204,13 @@ class Robot(pygame.sprite.Sprite):
         return cost
     
     def add_ob(self,o):
-        self.config.ob.append(o)
+        if(self.config.ob=="vacio"):
+             self.config.ob = np.array([o])
+        else:
+            self.config.ob=np.vstack((self.config.ob, o ))
+
+    def reset_ob(self):
+        self.config.ob = "vacio"
     
     def run(self, x , goal):
          """  Bucle de avance , mientras el objetivo no alcance la meta. """
@@ -224,33 +227,20 @@ class Robot(pygame.sprite.Sprite):
                 print("Goal!!")
                 break
 
+""" Encontrar obstaculos """
+def encontrar_obstaculos(Robot,x,y,large):
+    ox = obstacleList[: , 0]
+    oy = obstacleList[:, 1]
+    dx = x - ox[:, None]
+    dy = y - oy[:, None]
+    r = np.hypot(dx, dy)
+    print(r)
+    for ind,r in zip(range(r.shape[0]),r):
+        if(r<large):
+            Robot.add_ob(obstacleList[ind])
+    print("encontrando obstaculos:",Robot.config.ob)
+
 """ Dibujos """    
-def calcular_coordenadas(x,length, width):
-        rot =np.array([ [np.cos(x[2]), -np.sin(x[2])], 
-                                         [np.sin(x[2]), np.cos(x[2]) ] ])
-        coord =np.array( [ [x[0] -(length/2),
-                                                                x[0] -(length/2),
-                                                                x[0] + (length/2) ,
-                                                                x[0] + (length/2)] ,
-                                                                
-                                                                [x[1]+(width/2),
-                                                                x[1]-(width/2),
-                                                                x[1]-(width/2),
-                                                                x[1]+(width/2) ] ]).T  
-                            
-        print(coord.shape)
-        print(rot.shape)
-        coord = coord @ rot
-        print(coord)
-        return coord.transpose()
-    
-def dibujo_robot(x, Robot, screen):
-    if Robot.config.robot_type == RobotType.circle:
-        shape = pygame.draw.circle(screen, WHITE ,(x[0],x[1]), Robot.config.robot_radius)
-    elif Robot.config.robot_type == RobotType.rectangle:
-        coord = calcular_coordenadas(x, Robot.config.robot_length , Robot.config.robot_width)
-        shape = pygame.draw.polygon(screen,WHITE,coord)
-    return shape
 
 def dibuja_trayectorias(x,trayectorias_candidatas, screen):
     for trayectoria in trayectorias_candidatas:
@@ -303,6 +293,7 @@ def SIMULACION(Robot, x , goal):
                 exit()
        
         if movement:
+            encontrar_obstaculos(Robot,x[0],x[1],100)
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
             x = Robot.motion(x, u)  # nuevo estado del robot
             print(x)
@@ -315,11 +306,11 @@ def SIMULACION(Robot, x , goal):
         screen.fill('White') # pintando la ventana
         screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
         dibuja_meta(goal, screen, Robot.config.obs_radius) # dibujando meta
-        dibuja_obstaculos(Robot.config.ob, screen, Robot.config.obs_radius) # dibujando obstaculos
+        dibuja_obstaculos(obstacleList, screen, Robot.config.obs_radius) # dibujando obstaculos
         dibuja_trayectorias(x,trayectorias_candidatas, screen)
         dibuja_trayectoria(x,predicted_trajectory,screen)
         #######################################################
-        
+        Robot.reset_ob()
         pygame.display.update()
         clock.tick(60)  
 
