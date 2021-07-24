@@ -76,7 +76,7 @@ class Config:
         # if robot_type == RobotType.circle
         #También se utiliza para comprobar si se alcanza el objetivo en ambos tipos
         self.robot_radius = 0.5  * pixel # [m] para control de colisión
-        self.obs_radius = 3 * pixel
+        self.obs_radius = 0.5 * pixel
         # if robot_type == RobotType.rectangle
         self.robot_width = 1  * pixel# [m] para control de colisión
         self.robot_length = 1.2 * pixel # [m]para control de colisión
@@ -294,7 +294,7 @@ def simulacion(Robot,x,goal):
 
 
 
-def find_rotation_degrees(mouse_X, mouse_Y, center_X, center_Y, radians):
+def find_rotation_degrees(radians):
     degree = (radians * (180 / 3.1415) * -1) + 90
     return degree
 
@@ -328,13 +328,13 @@ def SIMULACION(Robot, x , goal):
             if event.type == pygame.KEYDOWN:
                 key = pygame.key.get_pressed()
                 if key[pygame.K_LEFT] or key[pygame.K_a]:
-                    x_change = - 5
+                    x_change = - 3
                 if key[pygame.K_RIGHT] or key[pygame.K_d]:
-                    x_change = + 5
+                    x_change = + 3
                 if key[pygame.K_UP] or key[pygame.K_w]:
-                    y_change = - 5
+                    y_change = - 3
                 if key[pygame.K_DOWN] or key[pygame.K_s]:
-                    y_change = + 5
+                    y_change = + 3
                 if key[pygame.K_ESCAPE]:
                     pygame.quit()
             if event.type == pygame.KEYUP:
@@ -366,7 +366,7 @@ def SIMULACION(Robot, x , goal):
         dibuja_trayectoria(x,predicted_trajectory,screen)
         #obteniendo variables para la rotación
         radians = find_rotation_radians(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1])
-        degrees = find_rotation_degrees(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1], radians)
+        degrees = find_rotation_degrees(radians)
         playerImgRotated = pygame.transform.rotate(Robot.auto, degrees)
         #Dibujando el player
         screen.blit(playerImgRotated,(x[0]-10,x[1]-10))
