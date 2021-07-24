@@ -4,15 +4,12 @@ import numpy as np
 import pygame
 from pygame.transform import flip, scale, rotate, rotozoom
 from sys import exit
-
+#Colores
 BLACK  = (   0,   0,   0)
 WHITE  = ( 255, 255, 255)
 GREEN  = (   0, 255,   0)
 RED    = ( 255,   0,   0)
 BLUE   = (   0,   0, 255)
-
-""" Ray-casting  """
-
 
 cadena=[]
 cadena2 =[]
@@ -24,15 +21,6 @@ with open(filename) as f_obj:
 for i in cadena:
     i =list(map(lambda x :float(x),i))
     cadena2.append(i)
-"""
-obstacleList =np.array( [[100.0, 100.0],
-                            [200.0, 100.0],
-                            [300.0, 100.0],
-                            [200.0, 200.0],
-                            [300.0, 200.0],
-                            [400.0, 200.0],
-                            [400.0, 300.0],
-                            [500.0, 300.0]])"""
 
 obstacleList =np.array(cadena2)
 
@@ -42,14 +30,14 @@ class RobotType(Enum):
 
 class Config:
     """
-    clase de parámetro de simulación
+    clase para la configuración del Robot
     """
 
     def __init__(self, pixel):
-        # parametros del robot
+        # Parámetros del robot
 
-        self.max_speed = 1.0 * pixel # [m/s]
-        self.min_speed = -0.5  * pixel # [m/s]
+        self.max_speed = 1.0 * pixel # velocidad máxima [m/s]
+        self.min_speed = -0.5  * pixel # velocidad mínima [m/s]
         self.max_yaw_rate =  ( 40.0 * math.pi / 180.0)  # [rad/s]
         self.max_accel = 0.2  * pixel # [m/ss]
         self.max_delta_yaw_rate = (40.0 * math.pi / 180.0 ) # [rad/ss]
@@ -70,13 +58,6 @@ class Config:
         # if robot_type == RobotType.rectangle
         self.robot_width = 1  * pixel# [m] para control de colisión
         self.robot_length = 1.2 * pixel # [m]para control de colisión
-        # obstaculos [x(m) y(m), ....]
-        """ self.ob = np.array([[100.0, 100.0],
-                            [200.0, 100.0],
-                            [300.0, 100.0],
-                            [200.0, 200.0],
-                            [300.0, 200.0],
-                            [400.0, 200.0]]) """
         self.ob = "vacio"
 
     @property
@@ -282,8 +263,6 @@ def simulacion(Robot,x,goal):
             print("Goal!!")
             break
 
-
-
 def find_rotation_degrees(radians):
     degree = (radians * (180 / 3.1415) * -1) + 90
     return degree
@@ -308,27 +287,6 @@ def SIMULACION(Robot, x , goal):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-            if event.type == pygame.KEYDOWN:
-                key = pygame.key.get_pressed()
-                if key[pygame.K_LEFT] or key[pygame.K_a]:
-                    x_change = - 3
-                if key[pygame.K_RIGHT] or key[pygame.K_d]:
-                    x_change = + 3
-                if key[pygame.K_UP] or key[pygame.K_w]:
-                    y_change = - 3
-                if key[pygame.K_DOWN] or key[pygame.K_s]:
-                    y_change = + 3
-                if key[pygame.K_ESCAPE]:
-                    pygame.quit()
-            if event.type == pygame.KEYUP:
-                if key[pygame.K_LEFT] or key[pygame.K_RIGHT] or key[pygame.K_a] or key[pygame.K_d]:
-                    x_change = 0
-                if key[pygame.K_UP] or key[pygame.K_DOWN] or key[pygame.K_s] or key[pygame.K_w]:
-                    y_change = 0
-
-        #Variando x,y segun el teclado
-        x[0] += x_change
-        x[1] += y_change
 
         if movement:
             encontrar_obstaculos(Robot,x[0],x[1],100)
