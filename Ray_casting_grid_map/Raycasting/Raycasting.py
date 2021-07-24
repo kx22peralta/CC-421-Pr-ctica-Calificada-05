@@ -98,7 +98,7 @@ def draw_line_of_sight(mouse_X, mouse_Y, center_X, center_Y,screen,obstacleList,
 def check_obstacle_collision(los_X, los_Y,obstacleList):
     for box in obstacleList:
         if(los_X >= box.x and los_X <= box.x + box.width):
-            # print('me enjaja')
+
             if(los_Y >= box.y and los_Y <= box.y + box.height):
                 return True
     else:
