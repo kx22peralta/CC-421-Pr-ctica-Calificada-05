@@ -24,6 +24,7 @@ BLUE   = (   0,   0, 255)
 """ Ray-casting  """
 
 
+
 cadena=[]
 cadena2 =[]
 filename = 'Arena1.txt'
@@ -35,6 +36,7 @@ for i in cadena:
     i =list(map(lambda x :float(x),i))
     cadena2.append(i)
 """
+
 obstacleList =np.array( [[100.0, 100.0],
                             [200.0, 100.0],
                             [300.0, 100.0],
@@ -42,9 +44,11 @@ obstacleList =np.array( [[100.0, 100.0],
                             [300.0, 200.0],
                             [400.0, 200.0],
                             [400.0, 300.0],
+
                             [500.0, 300.0]])"""
 
 obstacleList =np.array(cadena2)
+
 
 class RobotType(Enum):
     circle = 0
@@ -76,9 +80,14 @@ class Config:
         # if robot_type == RobotType.circle
         #También se utiliza para comprobar si se alcanza el objetivo en ambos tipos
         self.robot_radius = 0.5  * pixel # [m] para control de colisión
+
         self.obs_radius = 3 * pixel
         # if robot_type == RobotType.rectangle
         self.robot_width = 1  * pixel# [m] para control de colisión
+        self.obs_radius = 0.5 * pixel
+        # if robot_type == RobotType.rectangle
+        self.robot_width = 0.5  * pixel# [m] para control de colisión
+
         self.robot_length = 1.2 * pixel # [m]para control de colisión
         # obstaculos [x(m) y(m), ....]
         """ self.ob = np.array([[100.0, 100.0],
@@ -310,7 +319,11 @@ def SIMULACION(Robot, x , goal):
     trajectory = np.array(x)
     pygame.init()
     clock = pygame.time.Clock()
+
     screen = pygame.display.set_mode((800, 650))
+
+    screen = pygame.display.set_mode((700, 700))
+
     pygame.display.set_caption("Dynamic window approach")
 
     #Definiendo x, y para el movimiento con teclado
