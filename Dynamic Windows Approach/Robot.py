@@ -1,20 +1,10 @@
-"""
-
-Mobile robot motion planning sample with Dynamic Window Approach
-
-author: Atsushi Sakai (@Atsushi_twi), Göktuğ Karakaşlı
-
-"""
-
 import math
 from enum import Enum
-
-import matplotlib.pyplot as plt
 import numpy as np
-
 import pygame
 from pygame.transform import flip, scale, rotate, rotozoom
 from sys import exit
+
 BLACK  = (   0,   0,   0)
 WHITE  = ( 255, 255, 255)
 GREEN  = (   0, 255,   0)
@@ -197,7 +187,7 @@ class Robot(pygame.sprite.Sprite):
             local_ob = local_ob.reshape(-1, local_ob.shape[-1])
             local_ob = np.array([local_ob @ x for x in rot])
             local_ob = local_ob.reshape(-1, local_ob.shape[-1])
-            """ Checking si alguno llega a chocar al robot """
+            """ Verificando si alguno llega a chocar al robot """
             upper_check = local_ob[:, 0] + self.config.obs_radius <= self.config.robot_length / 2
             right_check = local_ob[:, 1] + self.config.obs_radius <= self.config.robot_width / 2
             bottom_check = local_ob[:, 0] + self.config.obs_radius >= -self.config.robot_length / 2
@@ -230,7 +220,7 @@ class Robot(pygame.sprite.Sprite):
         self.config.ob = "vacio"
     
     def run(self, x , goal):
-         """  Bucle de avance , mientras el objetivo no alcance la meta. """
+         """  Ciclo de avance, mientras el objetivo no alcance la meta. """
          self.inicio = x
          self.goal = goal 
          trajectory = np.array(x)
@@ -255,7 +245,7 @@ def encontrar_obstaculos(Robot,x,y,large):
     for ind,r in zip(range(r.shape[0]),r):
         if(r<large):
             Robot.add_ob(obstacleList[ind])
-    print("encontrando obstaculos:",Robot.config.ob)
+    print("Encontrando obstaculos:",Robot.config.ob)
 
 """ Dibujos """    
 
@@ -303,8 +293,6 @@ def find_rotation_radians(mouse_X, mouse_Y, center_X, center_Y):
     radians = math.atan2(mouse_Y - center_Y, mouse_X - center_X)
     return radians
 
-
-""" Función grafica """
 def SIMULACION(Robot, x , goal):
     Robot.goal = goal
     trajectory = np.array(x)
@@ -313,14 +301,9 @@ def SIMULACION(Robot, x , goal):
     screen = pygame.display.set_mode((800, 650))
     pygame.display.set_caption("Dynamic window approach")
 
-    #Definiendo x, y para el movimiento con teclado
-    x_change=0
-    y_change=0
-
-
     movement = True
     while True:
-        #Acciones para mover al jugador y salir de la simulación
+        #Evento para salir de la simulación
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -357,13 +340,13 @@ def SIMULACION(Robot, x , goal):
             if dist_to_goal <= Robot.config.robot_radius:
                 print("Goal!!")
                 movement = False
-            ##############--------ZONA DE DIBUJO------##############
-        screen.fill('White') # pintando la ventana
+        ##############--------ZONA DE DIBUJO------##############
+        screen.fill('gray') # Pintando la ventana dinamica
         # screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
         dibuja_meta(goal, screen, Robot.config.obs_radius) # dibujando meta
         dibuja_obstaculos(obstacleList, screen, Robot.config.obs_radius) # dibujando obstaculos
-        dibuja_trayectorias(x,trayectorias_candidatas, screen)
-        dibuja_trayectoria(x,predicted_trajectory,screen)
+        dibuja_trayectorias(x, trayectorias_candidatas, screen)
+        dibuja_trayectoria(x, predicted_trajectory, screen)
         #obteniendo variables para la rotación
         radians = find_rotation_radians(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1])
         degrees = find_rotation_degrees(radians)
