@@ -27,7 +27,9 @@ obstacleList =np.array( [[100.0, 100.0],
                             [300.0, 100.0],
                             [200.0, 200.0],
                             [300.0, 200.0],
-                            [400.0, 200.0]])
+                            [400.0, 200.0],
+                            [400.0, 300.0],
+                            [500.0, 300.0]])
 
 class RobotType(Enum):
     circle = 0
@@ -52,7 +54,7 @@ class Config:
         self.predict_time = 3.0   # [s]
         self.to_goal_cost_gain = 0.15 * pixel 
         self.speed_cost_gain = 1.0  
-        self.obstacle_cost_gain = 1.0  
+        self.obstacle_cost_gain = 100
         self.robot_stuck_flag_cons = 0.001 * pixel # constante para probar que el robot se atasque.
         self.robot_type = RobotType.circle 
 
@@ -276,22 +278,60 @@ def simulacion(Robot,x,goal):
             break
 
 
+
+def find_rotation_degrees(mouse_X, mouse_Y, center_X, center_Y, radians):
+    degree = (radians * (180 / 3.1415) * -1) + 90
+    return degree
+
+# método para determinar cuántos radianes rotar la imagen del jugador
+def find_rotation_radians(mouse_X, mouse_Y, center_X, center_Y):
+    radians = math.atan2(mouse_Y - center_Y, mouse_X - center_X)
+    return radians
+
+
 """ Función grafica """
 def SIMULACION(Robot, x , goal):
-    Robot.goal = goal 
+    Robot.goal = goal
     trajectory = np.array(x)
     pygame.init()
     clock = pygame.time.Clock()
     screen = pygame.display.set_mode((700, 700))
     pygame.display.set_caption("Dynamic window approach")
-    
+
+    #Definiendo x, y para el movimiento con teclado
+    x_change=0
+    y_change=0
+
+
     movement = True
     while True:
+        #Acciones para mover al jugador y salir de la simulación
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-       
+            if event.type == pygame.KEYDOWN:
+                key = pygame.key.get_pressed()
+                if key[pygame.K_LEFT] or key[pygame.K_a]:
+                    x_change = - 5
+                if key[pygame.K_RIGHT] or key[pygame.K_d]:
+                    x_change = + 5
+                if key[pygame.K_UP] or key[pygame.K_w]:
+                    y_change = - 5
+                if key[pygame.K_DOWN] or key[pygame.K_s]:
+                    y_change = + 5
+                if key[pygame.K_ESCAPE]:
+                    pygame.quit()
+            if event.type == pygame.KEYUP:
+                if key[pygame.K_LEFT] or key[pygame.K_RIGHT] or key[pygame.K_a] or key[pygame.K_d]:
+                    x_change = 0
+                if key[pygame.K_UP] or key[pygame.K_DOWN] or key[pygame.K_s] or key[pygame.K_w]:
+                    y_change = 0
+
+        #Variando x,y segun el teclado
+        x[0] += x_change
+        x[1] += y_change
+
         if movement:
             encontrar_obstaculos(Robot,x[0],x[1],100)
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
@@ -302,24 +342,30 @@ def SIMULACION(Robot, x , goal):
             if dist_to_goal <= Robot.config.robot_radius:
                 print("Goal!!")
                 movement = False
-             ##############--------ZONA DE DIBUJO------##############
+            ##############--------ZONA DE DIBUJO------##############
         screen.fill('White') # pintando la ventana
-        screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
+        # screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
         dibuja_meta(goal, screen, Robot.config.obs_radius) # dibujando meta
         dibuja_obstaculos(obstacleList, screen, Robot.config.obs_radius) # dibujando obstaculos
         dibuja_trayectorias(x,trayectorias_candidatas, screen)
         dibuja_trayectoria(x,predicted_trajectory,screen)
+        #obteniendo variables para la rotación
+        radians = find_rotation_radians(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1])
+        degrees = find_rotation_degrees(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1], radians)
+        playerImgRotated = pygame.transform.rotate(Robot.auto, degrees)
+        #Dibujando el player
+        screen.blit(playerImgRotated,(x[0]-10,x[1]-10))
         #######################################################
         Robot.reset_ob()
         pygame.display.update()
-        clock.tick(60)  
+        clock.tick(60)
 
 
 """ Función principal """
 def main():
     Robot1 =  Robot(RobotType.circle,20)
-    x = np.array([0.0, 0.0, math.pi / 8.0, 0.0, 0.0])
-    goal = np.array([500.0, 300.0])
+    x = np.array([10.0, 10.0, math.pi / 8.0, 0.0, 0.0])
+    goal = np.array([500.0, 500.0])
     #Robot1.run(x,goal)
     #simulacion(Robot1,x,goal)
     SIMULACION(Robot1,x,goal)
