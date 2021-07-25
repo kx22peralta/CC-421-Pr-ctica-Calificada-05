@@ -4,6 +4,7 @@ import numpy as np
 import pygame
 from pygame.transform import flip, scale, rotate, rotozoom
 from sys import exit
+import time
 # Definiendo Colores
 BLACK  = (   0,   0,   0)
 WHITE  = ( 255, 255, 255)
@@ -45,17 +46,17 @@ class Config:
         self.v_resolution = 0.01 * pixel # [m/s]
         self.yaw_rate_resolution = (0.1 * math.pi / 180.0)  # [rad/s]
         self.dt = 0.1  # [s] marca de tiempo para la predicción en movimiento
-        self.predict_time = 1.0   # [s]
-        self.to_goal_cost_gain = 0.15 * pixel
+        self.predict_time = 2.0   # [s]
+        self.to_goal_cost_gain = 0.15 * pixel 
         self.speed_cost_gain = 1.0 * pixel 
-        self.obstacle_cost_gain = 1.0 * pixel
+        self.obstacle_cost_gain = 1.0 * pixel*10
         self.robot_stuck_flag_cons = 0.001 * pixel # constante para probar que el robot se atasque.
         self.robot_type = RobotType.circle 
 
         # if robot_type == RobotType.circle
         #También se utiliza para comprobar si se alcanza el objetivo en ambos tipos
         self.robot_radius = 1  * pixel # [m] para control de colisión
-        self.obs_radius = 2 * pixel
+        self.obs_radius = 0.5 * pixel
         # if robot_type == RobotType.rectangle
         self.robot_width = 1.2 * pixel# [m] para control de colisión
         self.robot_length = 2 * pixel # [m]para control de colisión
@@ -251,6 +252,11 @@ def dibuja_trayectorias(x,trayectorias_candidatas, screen):
 def dibuja_trayectoria(x,predicted_trajectory,screen):
     pygame.draw.line(screen,RED ,(x[0],x[1]), (predicted_trajectory[-1,0],predicted_trajectory[-1,1]),2)
 
+def dibujar_trayectoria_completa(screen,trayectoria):
+    coord = trayectoria[:,0:2]
+    for coord_init,coord_finish in zip(coord[:-1,], coord [1:,]):
+       pygame.draw.line(screen,RED,(coord_init[0],coord_init[1]), (coord_finish[0],coord_finish[1]), width=2); 
+
 def dibuja_obstaculos(ob, screen,tam):
     for i in range(ob.shape[0]):
         obstaculo1=scale(pygame.image.load("arbusto.png").convert_alpha(), (int(tam), int(tam)))
@@ -280,15 +286,15 @@ def SIMULACION(Robot, x , goal):
     icono = pygame.image.load("icono.png") # Ícono del juego
     pygame.display.set_icon(icono)
     pygame.display.set_caption("Auto inteligente") # Título del juego
-
+    trayectoria_completa = 0
     movement = True
+    inicio = time.time()
     while True:
         # Evento para salir de la simulación
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-
         if movement:
             encontrar_obstaculos(Robot,x[0],x[1],100)
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
@@ -298,10 +304,16 @@ def SIMULACION(Robot, x , goal):
             dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
             if dist_to_goal <= Robot.config.robot_radius:
                 print("Goal!!")
+                fin = time.time()
+                print("El robot tarda :",fin-inicio,  " segundos.")
                 movement = False
+                trayectoria_completa = trajectory
+        
         ##############--------ZONA DE DIBUJO------##########################################################
         screen.fill('gray') # Pintando la ventana dinámica
         # screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
+        if not(movement):
+            dibujar_trayectoria_completa(screen,trayectoria_completa)
         dibuja_meta(goal, screen, Robot.config.obs_radius) # Ubicación de la meta
         dibuja_obstaculos(obstacleList, screen, Robot.config.obs_radius) # Ubicando obstáculos
         """ dibuja_trayectorias(x, trayectorias_candidatas, screen) """
