@@ -22,11 +22,6 @@ pygame.display.set_caption('RayCasting in Python')
 background_color = (255,255,255)
 black = pygame.Color(0,0,0)
 
-
-# playerImg = pygame.image.load('C:\Users\frank\Desktop\Ray_casting_grid_map\PeaShooterResizeOpen.png')
-
-# obstacleImg = pygame.image.load('C:\Users\frank\Desktop\Ray_casting_grid_map\Obstacle.png')
-
 playerImg = pygame.image.load('PeaShooterResizeOpen.png')
 
 obstacleImg = pygame.image.load('Obstacle.png')
