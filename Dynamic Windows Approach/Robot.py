@@ -25,6 +25,7 @@ for i in cadena:
 obstacleList =np.array(cadena2)
 
 class RobotType(Enum):
+    """ Clase para identicar la forma del robot """
     circle = 0
     rectangle = 1
 
@@ -44,10 +45,10 @@ class Config:
         self.v_resolution = 0.01 * pixel # [m/s]
         self.yaw_rate_resolution = (0.1 * math.pi / 180.0)  # [rad/s]
         self.dt = 0.1  # [s] marca de tiempo para la predicción en movimiento
-        self.predict_time = 3.0   # [s]
-        self.to_goal_cost_gain = 0.15 * pixel 
-        self.speed_cost_gain = 1.0  
-        self.obstacle_cost_gain = 50
+        self.predict_time = 1.0   # [s]
+        self.to_goal_cost_gain = 0.15 * pixel
+        self.speed_cost_gain = 1.0 * pixel 
+        self.obstacle_cost_gain = 1.0 * pixel
         self.robot_stuck_flag_cons = 0.001 * pixel # constante para probar que el robot se atasque.
         self.robot_type = RobotType.circle 
 
@@ -67,27 +68,22 @@ class Config:
     @robot_type.setter
     def robot_type(self, value):
         if not isinstance(value, RobotType):
-            raise TypeError("robot_type must be an instance of RobotType")
+            raise TypeError("robot_type debe ser una instania de RobotType")
         self._robot_type = value
 
 """ Robots """
 class Robot(pygame.sprite.Sprite):
-    """ Estado inicial del vehiculo (parametros iniciales)
-         [x(m), y(m), yaw(rad), v(m/s), omega(rad/s)] ,
-          x(m) : posición en x
-          y(m) : posición en y
-          yaw(rad) : posición angular con respecto al eje horizontal 
-          v (m/s) : velocidad
-          omega (rad/s) : velocidad angular """
-    """ posición de la meta  [x(m), y(m)] 
-           x(m) : posición en x de la meta
-           y(m) : posición de y de la meta"""
+    """ Se define la configuración inicial del robot :
+    tipo , tamaño de los pixeles y la imagen """
     def __init__(self,robot_type, pixel = 10 ):
         super().__init__()
         self.config = Config(pixel)
         self.config.robot_type = robot_type
         self.auto = flip(scale(pygame.image.load("auto.png"), (int(self.config.robot_width), int(self.config.robot_length))), False, True)
       
+    """ Movimiento del robot
+    x : estado actual
+    u : [velocidad, velocidad angular] """  
     def motion(self, x, u):
         x[2] += u[1] * self.config.dt
         x[0] += u[0] * math.cos(x[2]) * self.config.dt
@@ -96,11 +92,19 @@ class Robot(pygame.sprite.Sprite):
         x[4] = u[1]
         return x
 
+    """ Función que calcula la ventana dinamica y trayectorias, retorna el parametro 
+    u : [velocidad, velocidad angular] optimas
+    trajectory : trayectoria optima
+    trayectorias_candidatas : trayectorias candidatas """
     def dwa_control(self, x):
         dw = self.calc_dynamic_window(x)
         u, trajectory , trayectorias_candidatas= self.calc_control_and_trajectory(x, dw)
         return u, trajectory, trayectorias_candidatas
 
+    """  calculo del Venana Dinamica(Dynamic Window)
+            x : estado actual
+            config : configuraciones generales del robot (restricciones )
+            retorna un espacio de velocidad y velocidades angulares """
     def calc_dynamic_window(self,x):
         Vs = [self.config.min_speed, self.config.max_speed,
         -self.config.max_yaw_rate, self.config.max_yaw_rate]
@@ -115,6 +119,7 @@ class Robot(pygame.sprite.Sprite):
         
         return dw
     
+    """ Predice una trayectoria desde la posición actual (x_init) hasta un tiempo predict_time con velocidad y velocidad angular dados (v,y) """
     def predict_trajectory(self, x_init, v, y):
         x = np.array(x_init)
         trajectory = np.array(x)
@@ -125,6 +130,8 @@ class Robot(pygame.sprite.Sprite):
             time += self.config.dt
         return trajectory
     
+    """ Calcula las trayectorias para una posición x y una ventana dinamica dw
+    retorna mejor par [velocidad, velocidad angular], mejor trayectoria y trayectorias candidatas. """
     def calc_control_and_trajectory(self, x, dw):
         x_init = x[:]
         min_cost = float("inf")
@@ -153,6 +160,10 @@ class Robot(pygame.sprite.Sprite):
         
         return best_u, best_trajectory, trayectorias_candidatas
     
+    """ Calcula el costo de los obstaculos mapeados se le pasa una trayectoria y se calcula si esta trayectoria colisiona en algún momento con un obstaculo.
+    Si no hay obstaculos retorna = 0
+    Si hay obstaculos y estos chocas retorna infinito 
+    en otro caso retorna la inversa de la distancia al objeto."""
     def calc_obstacle_cost(self, trajectory):
         if( self.config.ob =="vacio" ): return 0
         ox = self.config.ob[:, 0]
@@ -183,12 +194,8 @@ class Robot(pygame.sprite.Sprite):
         min_r = np.min(r)
         return 1.0 / min_r  # OK
 
+    """Calculo del costo de meta de la trayectoria del ultimo momento (por eso escoge la ultima  fila de la matriz trayectoria, la trayectoria despues de predict_time instantes.) dependiendo el angulo"""
     def calc_to_goal_cost(self, trajectory):
-        """
-        Calculo del costo de meta de la trayectoria del ultimo momento (por eso escoge la ultima 
-        fila de la matriz trayectoria, la trayectoria despues de predict_time instantes.) dependiendo el angulo
-        
-        """
         dx = self.goal[0] - trajectory[-1, 0]
         dy = self.goal[1] - trajectory[-1, 1]
         error_angle = math.atan2(dy, dx)
@@ -196,31 +203,21 @@ class Robot(pygame.sprite.Sprite):
         cost = abs(math.atan2(math.sin(cost_angle), math.cos(cost_angle)))
         return cost
     
+    """ Agrega los obstaculos a lista de obstaculos del robot """
     def add_ob(self,o):
         if(self.config.ob=="vacio"):
              self.config.ob = o
         else:
             self.config.ob=np.vstack((self.config.ob, o ))
 
+    """ Resetea la lista de los obstaculos de los robot """
     def reset_ob(self):
         self.config.ob = "vacio"
     
-    def run(self, x , goal):
-         """  Ciclo de avance, mientras el objetivo no alcance la meta. """
-         self.inicio = x
-         self.goal = goal 
-         trajectory = np.array(x)
-         while True:
-            u, predicted_trajectory, trayectorias_candidatas = self.dwa_control(x)
-            x = self.motion(x, u)  # simulación del movimiento del robot
-            print(x)
-            trajectory = np.vstack((trajectory, x))  # historial de los estados.
-            dist_to_goal = math.hypot(x[0] - goal[0], x[1] - goal[1])
-            if dist_to_goal <= self.config.robot_radius:
-                print("Goal!!")
-                break
 
 """ Encontrando obstaculos """
+
+""" Función que agrega puntos de muestra alrededor de un centro x,y """
 def fun_puntos(arr, radio):
     x = int(arr[0])
     y = int(arr[1])
@@ -231,18 +228,19 @@ def fun_puntos(arr, radio):
             matriz = np.vstack((matriz, [i, j] ))
     return matriz
 
+""" Función que encuentra obstaculos  a un radio de tamaño :Large
+Esta función agrega obstaculos desde un centro x,y y los agrega a la lista del Robot. """
 def encontrar_obstaculos(Robot,x,y,large):
     ox = obstacleList[: , 0]
     oy = obstacleList[:, 1]
     dx = x - ox[:, None]
     dy = y - oy[:, None]
     r = np.hypot(dx, dy)
-    print(r)
     for ind,r in zip(range(r.shape[0]),r):
         if(r<large):
             muestraobstaculos = fun_puntos( obstacleList[ind] ,Robot.config.obs_radius)
             Robot.add_ob(muestraobstaculos)
-    print("Encontrando obstaculos:",Robot.config.ob)
+    
 
 """ Dibujos """    
 
@@ -258,35 +256,20 @@ def dibuja_obstaculos(ob, screen,tam):
         obstaculo1=scale(pygame.image.load("arbusto.png").convert_alpha(), (int(tam), int(tam)))
         screen.blit(obstaculo1, obstaculo1.get_rect( center=(ob[i][0], ob[i][1])))     
         
-
 def dibuja_meta(goal,screen,tam):
     meta=scale(pygame.image.load("inicio-fin.png").convert_alpha(), (int(tam), int(tam)))
     screen.blit(meta, meta.get_rect(center=(goal[0],goal[1])))
 
-
-
-""" Simulación sin dependencia del robot """
-def simulacion(Robot,x,goal):
-    trajectory = np.array(x)
-    while True:
-        Robot.goal = goal
-        u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
-        x = Robot.motion(x, u) # Recorrido del jugador 
-        print(x)
-        trajectory = np.vstack((trajectory, x))  # Guardando historial de la trayectoria
-        dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
-        if dist_to_goal <= Robot.config.robot_radius:
-            print("Goal!!")
-            break
-
+""" Halla el angulo de rotación en grados """
 def find_rotation_degrees(radians):
     degree = (radians * (180 / 3.1415) * -1) + 90
     return degree
 
-# Método para determinar cuántos radianes rotar la imagen del jugador
+""" Método para determinar cuántos radianes rotar la imagen del jugador """
 def find_rotation_radians(mouse_X, mouse_Y, center_X, center_Y):
     radians = math.atan2(mouse_Y - center_Y, mouse_X - center_X)
     return radians
+
 # Simulación del juego
 def SIMULACION(Robot, x , goal):
     Robot.goal = goal # personaje (jugador)
@@ -310,7 +293,7 @@ def SIMULACION(Robot, x , goal):
             encontrar_obstaculos(Robot,x[0],x[1],100)
             u, predicted_trajectory, trayectorias_candidatas = Robot.dwa_control(x)
             x = Robot.motion(x, u)  # Nuevo estado del robot
-            print(x)
+            """ print(x) """
             trajectory = np.vstack((trajectory, x))  # guardando estado
             dist_to_goal = math.hypot(x[0] - Robot.goal[0], x[1] - Robot.goal[1])
             if dist_to_goal <= Robot.config.robot_radius:
@@ -321,7 +304,7 @@ def SIMULACION(Robot, x , goal):
         # screen.blit(rotate(Robot.auto, x[3]),rotate(Robot.auto, x[3]).get_rect( center=(int(x[0]), int(x[1])))) # dibunjando el robot
         dibuja_meta(goal, screen, Robot.config.obs_radius) # Ubicación de la meta
         dibuja_obstaculos(obstacleList, screen, Robot.config.obs_radius) # Ubicando obstáculos
-        dibuja_trayectorias(x, trayectorias_candidatas, screen)
+        """ dibuja_trayectorias(x, trayectorias_candidatas, screen) """
         dibuja_trayectoria(x, predicted_trajectory, screen)
         # Obteniendo variables para la rotación
         radians = find_rotation_radians(predicted_trajectory[-1,0], predicted_trajectory[-1,1], x[0], x[1])
@@ -337,7 +320,7 @@ def SIMULACION(Robot, x , goal):
 
 """ Función principal """
 def main():
-    Robot1 =  Robot(RobotType.circle,10)
+    Robot1 =  Robot(RobotType.circle,20)
     x = np.array([10.0, 10.0, math.pi / 8.0, 0.0, 0.0])
     goal = np.array([500.0, 500.0])
     SIMULACION(Robot1,x,goal)
