@@ -1,9 +1,9 @@
 ## CC-421-Practica-Calificada-05
-#### PythonRobotic
+### PythonRobotic
 Colección de códigos Python sobre Algoritmos Robóticos.
 Implementación y simulación del algoritmo ¨Enfoque de ventana dinámica¨ para evitar colisiones.
-Curso: Inteligencia Artificial.
-Profesor: César Lara
+### Curso: Inteligencia Artificial.
+### Profesor: César Lara
 #### Integrantes:
 1. Campó Beraún José Javier
 2. Jara Ocas Hamer Franklin
@@ -19,5 +19,6 @@ Para ejecutar el código de muestra:
 
 #### Planificación de ruta
 Animación del algoritmo ¨Enfoque de Ventana Dinámica¨
-![2](https://github.com/kx22peralta/CC-421-Practica-Calificada-05/tree/main/Dynamic%20Windows%20Approach/animacion.gif)
+
+![Animación](https://github.com/kx22peralta/CC-421-Practica-Calificada-05/blob/main/Dynamic%20Windows%20Approach/animacion.gif)
 
